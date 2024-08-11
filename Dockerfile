@@ -1,5 +1,4 @@
 FROM node:22 AS builder
-ARG GH_API_KEY
 
 WORKDIR /app
 
