@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: .
+      secrets: 
+        - ghapikey
+    ports:
+      - '3001:3000'
+    read_only: true
+    volumes:
+      - '../../configs/conversation-data-service:/sandbox'
+      # - './static:/app/static'
+    environment: 
+      db__host: conversation-data-service-db
+      db__username: conversation-data-service
+      db__password: conversation-data-service
+      db__database: conversation-data-service
+    depends_on:
+      conversation-data-service-db:
+        condition: service_healthy
+    links:
+      - conversation-data-service-db
+
+  conversation-data-service-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: conversation-data-service
+      POSTGRES_USER: conversation-data-service
+      POSTGRES_PASSWORD: conversation-data-service
+    ports: ["5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -h conversation-data-service-db -U conversation-data-service"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+secrets:
+  ghapikey:
+    environment: GH_API_KEY
