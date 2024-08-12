@@ -4,6 +4,7 @@ export interface Thread {
   id: string;
   title: string;
   visibleToUserIds?: string[];
+  botId?: string;
 }
 
 const insert = (db: Knex) => (thread: Thread) =>
