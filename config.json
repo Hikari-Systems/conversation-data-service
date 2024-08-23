@@ -5,6 +5,9 @@
   "log": {
     "level": "debug"
   },
+  "redis": {
+    "enabled": "false"
+  },
   "db": {
     "name": "conversation-data-service",
     "host": "conversation-data-service-db",
