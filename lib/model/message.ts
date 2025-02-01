@@ -5,6 +5,7 @@ export interface Message {
   threadId: string;
   senderId: string;
   content: string;
+  role: string;
 }
 
 const insert = (db: Knex) => (message: Message) =>
