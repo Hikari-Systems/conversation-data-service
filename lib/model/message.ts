@@ -5,7 +5,8 @@ export interface Message {
   threadId: string;
   senderId: string;
   content: string;
-  role: string;
+  role?: string;
+  toolCallJson?: string; // only applicable when role = assistant
 }
 
 const insert = (db: Knex) => (message: Message) =>
