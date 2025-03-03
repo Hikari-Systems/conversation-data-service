@@ -46,15 +46,17 @@ router.get('/byUserId/:userId', async (req, res, next) => {
 });
 
 router.post('/', express.json(), async (req, res, next) => {
-  const { title, visibleToUserIds } = req.body as {
+  const { title, visibleToUserIds, botId } = req.body as {
     title: string;
     visibleToUserIds?: string[];
+    botId?: string;
   };
   try {
     const thread = await threadModel.insert({
       id: v4(),
       title,
       visibleToUserIds,
+      botId,
     });
     return res.status(201).json(thread);
   } catch (e) {

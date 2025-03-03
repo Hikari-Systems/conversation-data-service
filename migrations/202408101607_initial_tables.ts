@@ -6,6 +6,7 @@ export const up = (knex: Knex) =>
       t.uuid('id').primary().notNullable();
       t.string('title', 400).notNullable();
       t.specificType('visibleToUserIds', 'varchar(100)[]');
+      t.string('botId', 100);
       t.timestamps();
     })
     .raw(
