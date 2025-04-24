@@ -6,7 +6,7 @@
     "level": "debug"
   },
   "db": {
-    "name": "conversation-data-service",
+    "database": "conversation-data-service",
     "host": "conversation-data-service-db",
     "port": "5432",
     "username": "conversation-data-service",
