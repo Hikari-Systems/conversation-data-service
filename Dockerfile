@@ -9,36 +9,34 @@ COPY .npmrc /app/.npmrc
 RUN --mount=type=secret,id=ghapikey,required \
     export GH_API_KEY="$(cat /run/secrets/ghapikey)"; \ 
     echo "//npm.pkg.github.com/:_authToken=${GH_API_KEY}" >> ~/.npmrc
-RUN npm install
+RUN npm ci
 
-COPY .eslintrc.json /app/.eslintrc.json
-COPY .eslintignore /app/.eslintignore
-COPY .prettierrc /app/.prettierrc
-COPY .prettierignore /app/.prettierignore
-COPY tsconfig.json /app/tsconfig.json
-COPY config.json /app/config.json
+COPY .eslintrc.json .eslintignore .prettierrc .prettierignore tsconfig.json config.json /app/
 COPY lib /app/lib
 COPY migrations /app/migrations
-# COPY seeds /app/seeds
 COPY __tests__ /app/__tests__
-COPY config.json /app/config.json
+
 RUN npm run build
 
-COPY static /app/static
-COPY launch.sh /launch.sh
-RUN chmod +x /launch.sh
+COPY esbuild.config.js /app/esbuild.config.js
+RUN npm run build:esbuild
 
-FROM node:22
+COPY static /app/static
+
+# --- Runtime image ---
+FROM debian:buster-slim
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/es5 /app/es5
+# Copy only the SEA binary and required assets
+COPY --from=builder /usr/local/bin/node /app/node
+COPY --from=builder /app/dist/* /app/dist/
 COPY --from=builder /app/static /app/static
+COPY --from=builder /app/es5/migrations /app/migrations
 COPY --from=builder /app/config.json /app/config.json
-COPY --from=builder /launch.sh /launch.sh
+# COPY --from=builder /launch.sh /launch.sh
+# RUN chmod +x /launch.sh
 
-USER node
+USER nobody
 
-ENTRYPOINT ["/launch.sh"]
-CMD ["node", "es5/lib/server.js"]
+CMD ["/app/node", "/app/dist/server.bundle.js"]

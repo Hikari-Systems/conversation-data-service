@@ -1,20 +1,28 @@
 import express from 'express';
 import onDeath from 'death';
 import { config, logging } from '@hikari-systems/hs.utils';
+import { runKnexMigrations } from './knexfile';
 import routes from './index';
 
 const log = logging('server');
 
-const app = express();
-app.use(routes);
+runKnexMigrations()
+  .then(() => {
+    const app = express();
+    app.use(routes);
 
-const port = parseInt(config.get('server:port') || '3000', 10);
-const server = app.listen(port, async () => {
-  log.debug(
-    `Conversation-data-service listening on port ${port}: go to http://localhost:${port}/`,
-  );
-});
+    const port = parseInt(config.get('server:port') || '3000', 10);
+    const server = app.listen(port, async () => {
+      log.debug(
+        `Conversation-data-service listening on port ${port}: go to http://localhost:${port}/`,
+      );
+    });
 
-onDeath(() => {
-  server.close();
-});
+    onDeath(() => {
+      server.close();
+    });
+  })
+  .catch((err) => {
+    log.error('Migrate and boot server failed', err);
+    process.exit(1);
+  });
