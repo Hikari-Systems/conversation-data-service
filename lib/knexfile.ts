@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { Knex } from 'knex';
+import knex, { Knex } from 'knex';
 import snakeCase from 'lodash.snakecase';
 import camelCase from 'lodash.camelcase';
-import { config } from '@hikari-systems/hs.utils';
+import { config, logging } from '@hikari-systems/hs.utils';
+
+const log = logging('server');
 
 const configBoolean = (key: string, defaultValue = false): boolean =>
   (config.get(key) || String(defaultValue)).trim() === 'true';
@@ -61,7 +63,7 @@ export const postProcessResponse = ((): NonNullable<
   };
 })();
 
-export default {
+const knexConfig = {
   main: {
     client: 'pg',
     debug: configBoolean('db:debug'),
@@ -86,3 +88,24 @@ export default {
     postProcessResponse,
   } as Knex.Config,
 };
+
+export async function runKnexMigrations() {
+  const db: Knex = knex(knexConfig.main);
+  try {
+    const [batchNo, logMigrations] = await db.migrate.latest();
+    if (logMigrations.length > 0) {
+      log.debug(`Batch ${batchNo} run: ${logMigrations.length} migrations`);
+      logMigrations.forEach((m: string) => log.debug(`> ${m}`));
+    } else {
+      log.debug('No migrations applied');
+    }
+    log.debug('Database migrations completed');
+  } catch (err) {
+    log.error('Migration failed', err);
+    process.exit(1);
+  } finally {
+    await db.destroy();
+  }
+}
+
+export default knexConfig;
