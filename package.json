@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "author": "rick.knowles@hikari-systems.com",
   "description": "data backing service for conversations such as with LLMs",
+  "license": {
+    "type": "Apache-2.0",
+    "url": "https://opensource.org/licenses/apache2.0.php"
+  },
   "scripts": {
     "test": "jest -i",
     "testci": "jest --ci --bail -i",
