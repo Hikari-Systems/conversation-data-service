@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "author": "rick.knowles@hikari-systems.com",
   "description": "data backing service for conversations such as with LLMs",
+  "license": {
+    "type": "Apache-2.0",
+    "url": "https://opensource.org/licenses/apache2.0.php"
+  },
   "scripts": {
     "test": "jest -i",
     "testci": "jest --ci --bail -i",
@@ -13,7 +17,7 @@
     "start": "node es5/server.js"
   },
   "dependencies": {
-    "@hikari-systems/hs.utils": "^0.0.53",
+    "@hikari-systems/hs.utils": "^0.0.55",
     "death": "^1.1.0",
     "esbuild": "^0.25.4",
     "express": "^4.21.2",
