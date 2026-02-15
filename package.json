@@ -17,7 +17,7 @@
     "start": "node es5/server.js"
   },
   "dependencies": {
-    "@hikari-systems/hs.utils": "^0.0.55",
+    "@hikari-systems/hs.utils": "^0.0.62",
     "death": "^1.1.0",
     "esbuild": "^0.25.4",
     "express": "^4.21.2",
@@ -49,6 +49,9 @@
     "jest": "^29.7.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "langsmith": ">=0.4.6"
   },
   "main": "index.js"
 }
