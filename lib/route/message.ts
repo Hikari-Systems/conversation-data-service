@@ -45,12 +45,16 @@ router.get('/senderIdsByThreadId/:threadId', async (req, res, next) => {
 });
 
 router.post('/', express.json(), async (req, res, next) => {
-  const { content, threadId, senderId, role, toolCallJson } = req.body as {
+  const { content, threadId, senderId, toolCalls, toolResultCallId } = req.body as {
     threadId: string;
     senderId: string;
     content: string;
-    role?: string;
-    toolCallJson?: string;
+    toolCalls?: {
+      id: string;
+      name: string;
+      arguments: string;
+    }[];
+    toolResultCallId?: string | null;
   };
   try {
     const msg = await messageModel.insert({
@@ -58,8 +62,8 @@ router.post('/', express.json(), async (req, res, next) => {
       content,
       senderId,
       threadId,
-      role,
-      toolCallJson,
+      toolCalls,
+      toolResultCallId,
     });
     return res.status(201).json(msg);
   } catch (e) {

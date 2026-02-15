@@ -2,11 +2,17 @@ import { Knex } from 'knex';
 
 export interface Message {
   id: string;
-  threadId: string;
-  senderId: string;
-  content: string;
-  role?: string;
-  toolCallJson?: string; // only applicable when role = assistant
+  threadId: string; // uuid
+  senderId: string; // uuid of the user, or some kind of botId (user vs assistant implied)
+  content: string; // markdown or, when toolResultCallId is set, the tool result JSON string
+  /** Set when the assistant invoked tools. Enables correct history replay. */
+  toolCalls?: {
+    id: string;
+    name: string;
+    arguments: string;
+  }[];
+  /** When set, this message is a tool result for the given tool call id. User/assistant otherwise implied from senderId. */
+  toolResultCallId?: string | null;
 }
 
 const insert = (db: Knex) => (message: Message) =>
