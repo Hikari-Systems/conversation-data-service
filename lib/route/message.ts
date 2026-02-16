@@ -44,7 +44,7 @@ router.get('/senderIdsByThreadId/:threadId', async (req, res, next) => {
   }
 });
 
-router.post('/', express.json(), async (req, res, next) => {
+router.post('/', express.json({limit: '50mb'}), async (req, res, next) => {
   const { content, threadId, senderId, toolCalls, toolResultCallId } = req.body as {
     threadId: string;
     senderId: string;
