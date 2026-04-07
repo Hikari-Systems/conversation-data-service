@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3000"
+    read_only: true
+    environment:
+      - db__host=conversation-data-service-db
+      - db__password=conversation-data-service
+    depends_on:
+      conversation-data-service-db:
+        condition: service_healthy
+
+  conversation-data-service-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: conversation-data-service
+      POSTGRES_USER: conversation-data-service
+      POSTGRES_PASSWORD: conversation-data-service
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conversation-data-service"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
