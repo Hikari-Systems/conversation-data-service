@@ -18,7 +18,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"
-hs-utils = { git = "https://github.com/Hikari-Systems/hs-utils-rs", tag = "v0.2.2" }
+hs-utils = { git = "https://github.com/Hikari-Systems/hs-utils-rs", tag = "v0.2.4" }
 
 [profile.release]
 strip = true
