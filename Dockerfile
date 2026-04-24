@@ -32,4 +32,6 @@ RUN useradd -r -u 1000 appuser
 USER appuser
 
 EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["/app/server", "healthcheck"]
 ENTRYPOINT ["/app/server"]

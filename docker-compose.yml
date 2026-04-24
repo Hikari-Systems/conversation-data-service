@@ -7,6 +7,12 @@ services:
     environment:
       - db__host=conversation-data-service-db
       - db__password=conversation-data-service
+    healthcheck:
+      test: ["/app/server", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
     depends_on:
       conversation-data-service-db:
         condition: service_healthy

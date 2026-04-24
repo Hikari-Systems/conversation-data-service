@@ -1,11 +1,11 @@
-use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpResponse};
 use anyhow::Result;
 use sqlx::PgPool;
 use tracing::info;
-use tracing_subscriber::EnvFilter;
+
+use hs_utils::db::build_pool;
 
 mod config;
-mod db;
 mod models;
 mod routes;
 
@@ -15,15 +15,17 @@ pub struct AppState {
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    hs_utils::healthcheck::check_subcommand(
+        config::load().map(|c| c.server.port).unwrap_or(3000),
+    );
+
     let cfg = config::load()?;
 
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::new(&cfg.log.level))
-        .init();
+    hs_utils::logging::init(&cfg.log.level);
 
     info!("Starting conversation-data-service");
 
-    let pool = db::build_pool(&cfg.db).await?;
+    let pool = build_pool(&cfg.db).await?;
 
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("Migrations applied");
@@ -31,9 +33,7 @@ async fn main() -> Result<()> {
     let state = web::Data::new(AppState { pool });
     let port = cfg.server.port;
 
-    info!("Listening on port {}", port);
-
-    HttpServer::new(move || {
+    hs_utils::server::run(port, move || {
         // POST /api/message accepts large tool outputs
         let json_cfg = web::JsonConfig::default().limit(50 * 1024 * 1024);
 
@@ -44,11 +44,7 @@ async fn main() -> Result<()> {
             .route("/", web::get().to(root_page))
             .configure(routes::configure)
     })
-    .bind(("0.0.0.0", port))?
-    .run()
-    .await?;
-
-    Ok(())
+    .await
 }
 
 async fn root_page() -> HttpResponse {
