@@ -12,7 +12,10 @@ pub struct Message {
     pub thread_id: Uuid,
     pub sender_id: String,
     pub content: String,
-    #[sqlx(json)]
+    // `tool_calls` is a nullable JSONB column. `serde_json::Value` decodes
+    // JSON/JSONB natively (json feature) and `Option` handles SQL NULL — the
+    // `#[sqlx(json)]` attribute here decoded it as non-nullable `Json<Value>`,
+    // which failed on NULL rows with "unexpected null; try decoding as Option".
     pub tool_calls: Option<Value>,
     pub tool_result_call_id: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
