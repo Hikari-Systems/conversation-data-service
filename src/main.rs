@@ -13,6 +13,34 @@ pub struct AppState {
     pub pool: PgPool,
 }
 
+#[derive(serde::Deserialize)]
+struct HealthQuery {
+    deps: Option<String>,
+}
+
+/// `GET /healthcheck` → `OK` (cheap liveness probe the Docker HEALTHCHECK
+/// subcommand hits). `?deps=true` additionally runs `SELECT 1` against the
+/// database, returning 503 when the pool is unhealthy.
+async fn healthcheck(
+    state: actix_web::web::Data<AppState>,
+    q: actix_web::web::Query<HealthQuery>,
+) -> actix_web::HttpResponse {
+    let want_deps = matches!(q.deps.as_deref(), Some("true") | Some("1"));
+    if !want_deps {
+        return actix_web::HttpResponse::Ok().body("OK");
+    }
+    match sqlx::query_scalar::<_, i64>("SELECT 1")
+        .fetch_one(&state.pool)
+        .await
+    {
+        Ok(_) => actix_web::HttpResponse::Ok().body("OK"),
+        Err(e) => {
+            tracing::error!("healthcheck db query failed: {e}");
+            actix_web::HttpResponse::ServiceUnavailable().body("db down")
+        }
+    }
+}
+
 #[actix_web::main]
 async fn main() -> Result<()> {
     hs_utils::healthcheck::check_subcommand(
@@ -40,7 +68,7 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(state.clone())
             .app_data(json_cfg)
-            .route("/healthcheck", web::get().to(|| async { "OK" }))
+            .route("/healthcheck", web::get().to(healthcheck))
             .route("/", web::get().to(root_page))
             .configure(routes::configure)
     })
