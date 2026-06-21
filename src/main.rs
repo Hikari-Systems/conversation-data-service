@@ -29,7 +29,7 @@ async fn healthcheck(
     if !want_deps {
         return actix_web::HttpResponse::Ok().body("OK");
     }
-    match sqlx::query_scalar::<_, i64>("SELECT 1")
+    match sqlx::query("SELECT 1")
         .fetch_one(&state.pool)
         .await
     {
