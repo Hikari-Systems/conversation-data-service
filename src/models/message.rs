@@ -22,6 +22,11 @@ pub struct Message {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+/// Every column `Message` reads, in place of `SELECT *` / `RETURNING *` (a `*` statement's
+/// cached plan breaks on old instances mid-deploy when a migration changes the table).
+/// When a migration adds a column to `message`, add it here and to `Message` in the same change.
+pub const MESSAGE_COLUMNS: &str = "id, thread_id, sender_id, content, tool_calls, tool_result_call_id, created_at, updated_at";
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateMessage {
@@ -34,11 +39,12 @@ pub struct CreateMessage {
 
 pub async fn insert(pool: &PgPool, input: CreateMessage) -> Result<Message> {
     let now = Utc::now();
+    // Not RETURNING *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
     let msg = sqlx::query_as::<_, Message>(
-        "INSERT INTO message
+        &format!("INSERT INTO message
             (id, thread_id, sender_id, content, tool_calls, tool_result_call_id, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-         RETURNING *",
+         RETURNING {MESSAGE_COLUMNS}"),
     )
     .bind(Uuid::new_v4())
     .bind(input.thread_id)
@@ -54,7 +60,8 @@ pub async fn insert(pool: &PgPool, input: CreateMessage) -> Result<Message> {
 
 #[allow(dead_code)]
 pub async fn get(pool: &PgPool, id: Uuid) -> Result<Option<Message>> {
-    let msg = sqlx::query_as::<_, Message>("SELECT * FROM message WHERE id = $1")
+    // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
+    let msg = sqlx::query_as::<_, Message>(&format!("SELECT {MESSAGE_COLUMNS} FROM message WHERE id = $1"))
         .bind(id)
         .fetch_optional(pool)
         .await?;
@@ -63,8 +70,9 @@ pub async fn get(pool: &PgPool, id: Uuid) -> Result<Option<Message>> {
 
 #[allow(dead_code)]
 pub async fn get_all(pool: &PgPool) -> Result<Vec<Message>> {
+    // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
     let msgs = sqlx::query_as::<_, Message>(
-        "SELECT * FROM message ORDER BY created_at ASC",
+        &format!("SELECT {MESSAGE_COLUMNS} FROM message ORDER BY created_at ASC"),
     )
     .fetch_all(pool)
     .await?;
@@ -72,8 +80,9 @@ pub async fn get_all(pool: &PgPool) -> Result<Vec<Message>> {
 }
 
 pub async fn get_all_by_thread_id(pool: &PgPool, thread_id: Uuid) -> Result<Vec<Message>> {
+    // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
     let msgs = sqlx::query_as::<_, Message>(
-        "SELECT * FROM message WHERE thread_id = $1 ORDER BY created_at ASC",
+        &format!("SELECT {MESSAGE_COLUMNS} FROM message WHERE thread_id = $1 ORDER BY created_at ASC"),
     )
     .bind(thread_id)
     .fetch_all(pool)

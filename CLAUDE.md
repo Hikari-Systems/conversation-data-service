@@ -100,3 +100,20 @@ No ImageMagick, no native deps beyond `ca-certificates`. Cold first build takes 
 - The `role` column was dropped in migration `20260215155700_tools`. The `Message` struct does not have a `role` field. Do not add one without a new migration.
 - `unrouted` model functions (`get`, `get_all`, `delete` on message; `get_all` on thread) are marked `#[allow(dead_code)]` — they are intentionally present for future endpoints.
 - Database migrations run automatically on startup. The `_sqlx_migrations` table is idempotent — safe to run against an already-migrated database.
+
+---
+
+## Design constraint: no `SELECT *` / `RETURNING *`
+
+Every query names its columns. sqlx caches each prepared statement per pooled connection
+with the table's shape at that moment; when a migration adds or drops a column, an
+instance still running the old code (mid rolling deploy) fails every `*` query with
+`cached plan must not change result type` (hs-deploy, HIK-667, 2026-10-26).
+
+- Each table's full-row column list is one `*_COLUMNS` constant beside its model struct,
+  used via `format!` in every query that returns that row.
+- Every query that replaced a `SELECT *` / `RETURNING *` carries a comment saying why it is
+  not `*` and that its column list must stay in sync with the table's full column list.
+  Keep that comment on new queries too.
+- **When a migration adds a column, add it to that table's `*_COLUMNS` constant (and any
+  inline column list commented as above) and to the struct in the same change.**
