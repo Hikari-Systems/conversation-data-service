@@ -5,11 +5,17 @@
   "log": {
     "level": "debug"
   },
+  "otel": {
+    "enabled": "false",
+    "serviceName": "conversation-data-service",
+    "level": "info"
+  },
   "db": {
     "database": "conversation-data-service",
     "host": "conversation-data-service-db",
     "port": "5432",
     "username": "conversation-data-service",
-    "password": "conversation-data-service"
+    "password": "conversation-data-service",
+    "slowqueryms": "250"
   }
 }

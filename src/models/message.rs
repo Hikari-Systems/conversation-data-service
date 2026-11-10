@@ -25,7 +25,8 @@ pub struct Message {
 /// Every column `Message` reads, in place of `SELECT *` / `RETURNING *` (a `*` statement's
 /// cached plan breaks on old instances mid-deploy when a migration changes the table).
 /// When a migration adds a column to `message`, add it here and to `Message` in the same change.
-pub const MESSAGE_COLUMNS: &str = "id, thread_id, sender_id, content, tool_calls, tool_result_call_id, created_at, updated_at";
+pub const MESSAGE_COLUMNS: &str =
+    "id, thread_id, sender_id, content, tool_calls, tool_result_call_id, created_at, updated_at";
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +38,7 @@ pub struct CreateMessage {
     pub tool_result_call_id: Option<String>,
 }
 
+#[tracing::instrument(skip_all, name = "db.message.insert", fields(db.system.name = "postgresql"))]
 pub async fn insert(pool: &PgPool, input: CreateMessage) -> Result<Message> {
     let now = Utc::now();
     // Not RETURNING *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
@@ -59,37 +61,43 @@ pub async fn insert(pool: &PgPool, input: CreateMessage) -> Result<Message> {
 }
 
 #[allow(dead_code)]
+#[tracing::instrument(skip_all, name = "db.message.get", fields(db.system.name = "postgresql"))]
 pub async fn get(pool: &PgPool, id: Uuid) -> Result<Option<Message>> {
     // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
-    let msg = sqlx::query_as::<_, Message>(&format!("SELECT {MESSAGE_COLUMNS} FROM message WHERE id = $1"))
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
+    let msg = sqlx::query_as::<_, Message>(&format!(
+        "SELECT {MESSAGE_COLUMNS} FROM message WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
     Ok(msg)
 }
 
 #[allow(dead_code)]
+#[tracing::instrument(skip_all, name = "db.message.get_all", fields(db.system.name = "postgresql"))]
 pub async fn get_all(pool: &PgPool) -> Result<Vec<Message>> {
     // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
-    let msgs = sqlx::query_as::<_, Message>(
-        &format!("SELECT {MESSAGE_COLUMNS} FROM message ORDER BY created_at ASC"),
-    )
+    let msgs = sqlx::query_as::<_, Message>(&format!(
+        "SELECT {MESSAGE_COLUMNS} FROM message ORDER BY created_at ASC"
+    ))
     .fetch_all(pool)
     .await?;
     Ok(msgs)
 }
 
+#[tracing::instrument(skip_all, name = "db.message.get_all_by_thread_id", fields(db.system.name = "postgresql"))]
 pub async fn get_all_by_thread_id(pool: &PgPool, thread_id: Uuid) -> Result<Vec<Message>> {
     // Not SELECT *: MESSAGE_COLUMNS must stay in sync with message's full column list (cached-plan breakage mid-deploy).
-    let msgs = sqlx::query_as::<_, Message>(
-        &format!("SELECT {MESSAGE_COLUMNS} FROM message WHERE thread_id = $1 ORDER BY created_at ASC"),
-    )
+    let msgs = sqlx::query_as::<_, Message>(&format!(
+        "SELECT {MESSAGE_COLUMNS} FROM message WHERE thread_id = $1 ORDER BY created_at ASC"
+    ))
     .bind(thread_id)
     .fetch_all(pool)
     .await?;
     Ok(msgs)
 }
 
+#[tracing::instrument(skip_all, name = "db.message.get_sender_ids_by_thread_id", fields(db.system.name = "postgresql"))]
 pub async fn get_sender_ids_by_thread_id(pool: &PgPool, thread_id: Uuid) -> Result<Vec<String>> {
     let rows = sqlx::query_scalar::<_, String>(
         "SELECT DISTINCT sender_id FROM message WHERE thread_id = $1",
@@ -101,6 +109,7 @@ pub async fn get_sender_ids_by_thread_id(pool: &PgPool, thread_id: Uuid) -> Resu
 }
 
 #[allow(dead_code)]
+#[tracing::instrument(skip_all, name = "db.message.delete", fields(db.system.name = "postgresql"))]
 pub async fn delete(pool: &PgPool, id: Uuid) -> Result<()> {
     sqlx::query("DELETE FROM message WHERE id = $1")
         .bind(id)

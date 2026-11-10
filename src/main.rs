@@ -29,10 +29,7 @@ async fn healthcheck(
     if !want_deps {
         return actix_web::HttpResponse::Ok().body("OK");
     }
-    match sqlx::query("SELECT 1")
-        .fetch_one(&state.pool)
-        .await
-    {
+    match sqlx::query("SELECT 1").fetch_one(&state.pool).await {
         Ok(_) => actix_web::HttpResponse::Ok().body("OK"),
         Err(e) => {
             tracing::error!("healthcheck db query failed: {e}");
@@ -43,13 +40,13 @@ async fn healthcheck(
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-    hs_utils::healthcheck::check_subcommand(
-        config::load().map(|c| c.server.port).unwrap_or(3000),
-    );
+    hs_utils::healthcheck::check_subcommand(config::load().map(|c| c.server.port).unwrap_or(3000));
 
     let cfg = config::load()?;
 
-    hs_utils::logging::init(&cfg.log.level);
+    // Replaces logging::init (it installs the same stdout layer). Held for the
+    // whole of main: dropping it flushes the span and metric exporters.
+    let _otel = hs_utils::otel::init(&cfg.log.level, &cfg.otel)?;
 
     info!("Starting conversation-data-service");
 
@@ -68,6 +65,9 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(state.clone())
             .app_data(json_cfg)
+            // A span per request, named by route template, continuing the
+            // caller's trace; also request duration and in-flight metrics.
+            .wrap(hs_utils::otel::actix_trace())
             .route("/healthcheck", web::get().to(healthcheck))
             .route("/", web::get().to(root_page))
             .configure(routes::configure)

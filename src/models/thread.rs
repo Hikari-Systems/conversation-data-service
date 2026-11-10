@@ -28,14 +28,15 @@ pub struct CreateThread {
     pub bot_id: Option<String>,
 }
 
+#[tracing::instrument(skip_all, name = "db.thread.insert", fields(db.system.name = "postgresql"))]
 pub async fn insert(pool: &PgPool, input: CreateThread) -> Result<Thread> {
     let now = Utc::now();
     // Not RETURNING *: THREAD_COLUMNS must stay in sync with thread's full column list (cached-plan breakage mid-deploy).
-    let thread = sqlx::query_as::<_, Thread>(
-        &format!("INSERT INTO thread (id, title, visible_to_user_ids, bot_id, created_at, updated_at)
+    let thread = sqlx::query_as::<_, Thread>(&format!(
+        "INSERT INTO thread (id, title, visible_to_user_ids, bot_id, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $5)
-         RETURNING {THREAD_COLUMNS}"),
-    )
+         RETURNING {THREAD_COLUMNS}"
+    ))
     .bind(Uuid::new_v4())
     .bind(&input.title)
     .bind(&input.visible_to_user_ids)
@@ -46,32 +47,38 @@ pub async fn insert(pool: &PgPool, input: CreateThread) -> Result<Thread> {
     Ok(thread)
 }
 
+#[tracing::instrument(skip_all, name = "db.thread.get", fields(db.system.name = "postgresql"))]
 pub async fn get(pool: &PgPool, id: Uuid) -> Result<Option<Thread>> {
     // Not SELECT *: THREAD_COLUMNS must stay in sync with thread's full column list (cached-plan breakage mid-deploy).
-    let thread = sqlx::query_as::<_, Thread>(&format!("SELECT {THREAD_COLUMNS} FROM thread WHERE id = $1"))
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
+    let thread = sqlx::query_as::<_, Thread>(&format!(
+        "SELECT {THREAD_COLUMNS} FROM thread WHERE id = $1"
+    ))
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
     Ok(thread)
 }
 
 #[allow(dead_code)]
+#[tracing::instrument(skip_all, name = "db.thread.get_all", fields(db.system.name = "postgresql"))]
 pub async fn get_all(pool: &PgPool) -> Result<Vec<Thread>> {
     // Not SELECT *: THREAD_COLUMNS must stay in sync with thread's full column list (cached-plan breakage mid-deploy).
-    let threads =
-        sqlx::query_as::<_, Thread>(&format!("SELECT {THREAD_COLUMNS} FROM thread ORDER BY created_at DESC"))
-            .fetch_all(pool)
-            .await?;
+    let threads = sqlx::query_as::<_, Thread>(&format!(
+        "SELECT {THREAD_COLUMNS} FROM thread ORDER BY created_at DESC"
+    ))
+    .fetch_all(pool)
+    .await?;
     Ok(threads)
 }
 
+#[tracing::instrument(skip_all, name = "db.thread.get_all_by_user_id", fields(db.system.name = "postgresql"))]
 pub async fn get_all_by_user_id(pool: &PgPool, user_id: &str) -> Result<Vec<Thread>> {
     // Not SELECT *: THREAD_COLUMNS must stay in sync with thread's full column list (cached-plan breakage mid-deploy).
-    let threads = sqlx::query_as::<_, Thread>(
-        &format!("SELECT {THREAD_COLUMNS} FROM thread
+    let threads = sqlx::query_as::<_, Thread>(&format!(
+        "SELECT {THREAD_COLUMNS} FROM thread
          WHERE visible_to_user_ids IS NULL OR $1 = ANY(visible_to_user_ids)
-         ORDER BY created_at DESC"),
-    )
+         ORDER BY created_at DESC"
+    ))
     .bind(user_id)
     .fetch_all(pool)
     .await?;
