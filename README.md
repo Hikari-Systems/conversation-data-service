@@ -8,6 +8,7 @@ A Rust/actix-web microservice for storing and retrieving LLM conversation thread
 
 - Thread and message CRUD backed by PostgreSQL
 - `visibleToUserIds` array filtering for per-user thread visibility
+- `app` / `kind` tags (caller-defined: which application wrote a thread and what sort of conversation it is), with exact-match list filters
 - `toolCalls` (JSONB) and `toolResultCallId` for LLM tool call tracking
 - Automatic schema migrations on startup
 - Config layering: baked defaults → env vars
@@ -41,17 +42,30 @@ curl http://localhost:3001/api/thread/550e8400-e29b-41d4-a716-446655440000
   "visibleToUserIds": ["user-abc", "user-def"],
   "botId": "gpt-4o",
   "createdAt": "2026-04-07T12:00:00Z",
-  "updatedAt": "2026-04-07T12:00:00Z"
+  "updatedAt": "2026-04-07T12:00:00Z",
+  "app": "my-app",
+  "kind": "support"
 }
 ```
+
+`app` and `kind` are always present and `null` on a thread nobody tagged (see
+[Thread tags](#thread-tags-app-and-kind)).
 
 ---
 
 ### `GET /api/thread/byUserId/:userId`
 Returns all threads visible to the given user. A thread is visible if `visibleToUserIds` is `null` (public) or contains the user ID.
 
+Optional query parameters narrow the list by exact match. Without them the endpoint behaves as it always has. A filter never matches a thread whose tag is `null`, and applies to public threads as well as private ones.
+
+| Param | Description |
+|---|---|
+| `app` | Only threads whose `app` equals this |
+| `kind` | Only threads whose `kind` equals this |
+
 ```bash
 curl http://localhost:3001/api/thread/byUserId/user-abc
+curl 'http://localhost:3001/api/thread/byUserId/user-abc?app=my-app&kind=support'
 ```
 
 **Response `200 OK`** — array of thread objects, ordered by `createdAt` descending.
@@ -77,8 +91,22 @@ curl -X POST http://localhost:3001/api/thread \
 | `title` | string | yes | Thread title |
 | `visibleToUserIds` | string[] | no | User IDs that can see this thread; `null` = public |
 | `botId` | string | no | Associated bot/model identifier |
+| `app` | string | no | The application that owns the thread (caller-defined, ≤ 50 chars); stored `null` if omitted |
+| `kind` | string | no | Sort of conversation within that application (caller-defined, ≤ 50 chars); stored `null` if omitted |
 
 **Response `201 Created`** — created thread object.
+
+---
+
+### Thread tags (`app` and `kind`)
+
+Several applications can share this service, and a person can have the same user
+id in each of them, so an untagged list by user would hand each application the
+others' threads. Each caller tags what it creates and filters what it lists by
+its own `app` (and `kind`). The values belong to the callers: this service stores
+and matches them as free text (≤ 50 chars) and never validates or interprets them.
+Threads created without tags, and rows that predate the columns, are `null` and
+match no filter.
 
 ---
 
@@ -275,6 +303,17 @@ db__host=localhost cargo run
 
 ```bash
 cargo check
+```
+
+### Tests
+
+`cargo test` needs no database. The route tests need one and are
+`#[ignore]`d; run them against a throwaway Postgres (each run uses a fresh schema):
+
+```bash
+docker run -d --rm --name cds-test -e POSTGRES_PASSWORD=p -p 55432:5432 postgres:18
+TEST_DATABASE_URL=postgres://postgres:p@127.0.0.1:55432/postgres cargo test -- --ignored --test-threads=1
+docker stop cds-test
 ```
 
 ### End-to-end test sequence

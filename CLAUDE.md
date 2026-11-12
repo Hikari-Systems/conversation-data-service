@@ -22,7 +22,7 @@ src/
     message.rs       — Message struct (FromRow + Serialize), DB query functions
   routes/
     mod.rs           — registers all routes on ServiceConfig; specific routes before wildcards
-    thread.rs        — GET /api/thread/:id, GET /api/thread/byUserId/:id, POST /api/thread
+    thread.rs        — GET /api/thread/:id, GET /api/thread/byUserId/:id[?app=&kind=], POST /api/thread
     message.rs       — GET /api/message/byThreadId/:id, GET .../senderIdsByThreadId/:id, POST /api/message
 static/
   index.html         — root page (embedded via include_str! at compile time)
@@ -62,6 +62,22 @@ The `get_all_by_user_id` query uses:
 WHERE visible_to_user_ids IS NULL OR $1 = ANY(visible_to_user_ids)
 ```
 `$1` is bound as a `&str` (Postgres `text`), which is compatible with `varchar(100)[]` in PostgreSQL's implicit cast rules.
+The visibility test is parenthesised and followed by the optional tag filters,
+`AND ($2::text IS NULL OR app = $2) AND ($3::text IS NULL OR kind = $3)`. Keep the
+parentheses: without them the filters would not apply to public (NULL-visibility) rows.
+
+### Thread tags: `app` and `kind` (migration `20261112120000_thread_app_kind`)
+`app` says which application wrote a thread, `kind` what sort of conversation it
+is. Both are nullable free text, accepted on `POST /api/thread`, returned on every
+read, and usable as exact-match filters on `GET /api/thread/byUserId/{userId}`.
+- **Generic on purpose.** This service never names, validates or interprets the
+  values: they belong to its callers. Keep application names and application-
+  specific rules (including any backfill of old rows) out of this repo.
+- **Backwards compatible.** No filter means today's list; a create without them
+  stores NULL. Callers can deploy before or after this service.
+- **A filter never matches NULL.** Do not "helpfully" make a filter match NULL.
+- Tests: `routes/thread.rs` has `#[ignore]`d DB tests (`TEST_DATABASE_URL`) that
+  apply the migrations and drive the real routes.
 
 ### Static file serving
 `static/index.html` is embedded via `include_str!("../static/index.html")` and served from a handler. Do not use `actix-files` — the relative path `./static` resolves relative to the process CWD, which is unreliable inside Docker.
